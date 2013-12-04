@@ -2593,3 +2593,9 @@ var __module0__ = (function(__dependency1__, __dependency2__, __dependency3__, _
 
   return __module0__;
 })();
+
+var output = "";
+output += "var JST = (typeof JST === 'undefined') ? {} : JST; (function() { var template = Handlebars.template, templates = JST"; 
+output += "templates['test.jst.hbs'] = template(" + Handlebars.precompile('<div>{{foo}}</div>') + "); })();";
+
+print(output);
