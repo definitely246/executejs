@@ -1,6 +1,6 @@
 <?php namespace Codesleeve\Executejs;
 
-class Executejs
+class Executejs implements Runtimes\RuntimeInterface
 {
 	/**
 	 * Create a new executejs object with a runtime
@@ -17,14 +17,56 @@ class Executejs
 	}
 
 	/**
-	 * Execute the javascript
+	 * Calls apply on the source
 	 * 
-	 * @param  string $javascript
+	 * @param  [type] $source [description]
+	 * @return [type]         [description]
+	 */
+	public function call($source)
+	{
+		return $this->runtime->call($source);
+	}
+
+	/**
+	 * [compile description]
+	 * @param  [type] $source [description]
+	 * @return [type]         [description]
+	 */
+	public function compile($source)
+	{
+		return $this->runtime->compile($source);
+	}
+
+	/**
+	 * Evaluate the javascript
+	 * 
+	 * @param  string $source
 	 * @return string            
 	 */
-	public function execute($javascript)
+	public function evaluate($source)
 	{
-		return $this->runtime->execute($javascript);
+		return $this->runtime->evaluate($source);
+	}
+
+	/**
+	 * Execute the javascript
+	 * 
+	 * @param  string $source
+	 * @return string            
+	 */
+	public function execute($source)
+	{
+		return $this->runtime->execute($source);
+	}
+
+	/**
+	 * Is there a runtime set or not?
+	 * 
+	 * @return boolean
+	 */
+	public function isAvailable()
+	{
+		return is_null($this->runtime);
 	}
 
 	/**
@@ -32,7 +74,7 @@ class Executejs
 	 * 
 	 * @return RuntimeInterface
 	 */
-	public function firstAvailable()
+	protected function firstAvailable()
 	{
 		foreach ($this->runtimes as $runtime)
 		{
@@ -41,6 +83,6 @@ class Executejs
 			}
 		}
 
-		throw new Exceptions\NoAvailableRuntime('No available runtime found');
+		return null;
 	}
 }

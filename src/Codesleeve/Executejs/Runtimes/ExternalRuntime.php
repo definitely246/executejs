@@ -7,14 +7,85 @@ class ExternalRuntime implements RuntimeInterface
 	/**
 	 * Create a new external runtime class
 	 * 
-	 * @param string $name    
-	 * @param string $command
+	 * @param string $context    
+	 * @param string $source
 	 */
-	public function __construct($name, $command)
+	public function __construct($executable, $source = "")
 	{
-		$this->name = $name;
-		$this->command = $command;
-		$this->wrapInFile = true;
+		$this->executable = $executable;
+		$this->source = $source ? $source . PHP_EOL : "";
+	}
+
+	/**
+	 * Calls apply on the source code
+	 * 
+	 * @param  string $source
+	 * @return string        
+	 */
+	public function call($source, array $args = array(), $context = null)
+	{
+		$context = is_null($context) ? "this" : json_encode($context);
+		$args = json_encode($args);
+
+		print $source . '.apply('. $context . ', ' . $args . ')';
+	}
+
+	/**
+	 * Add in additional source code to our existing runtime
+	 * 
+	 * @param  string $source
+	 * @return $this        
+	 */
+	public function compile($source)
+	{
+		$this->source .= $source;
+		return $this;
+	}
+
+	/**
+	 * Compiles the source from a file name
+	 * 
+	 * @param  string $filename
+	 * @return string          
+	 */
+	public function compile_file($filename)
+	{
+		return $this->compile(file_get_contents($filename));
+	}
+
+	/**
+	 * Evaluate the source code
+	 * 
+	 * @param  string $source
+	 * @return string        
+	 */
+	public function evaluate($source)
+	{
+		return $this->execute('return eval(' . $source . ');');
+	}
+
+	/**
+	 * Run this javascript against the external command
+	 * we have passed into the command line
+	 * 
+	 * @param  string $source
+	 * @return string
+	 */
+	public function execute($source)
+	{
+		$source = $this->source . $this->encode($source);
+		$filename = $this->createFileWrapper($source);
+		$result = 0; $outputs = array();
+
+		exec($this->executable . " $filename", $outputs, $result);
+
+		if ($result == 0)
+		{
+			unlink($filename);
+			return implode('', $outputs);
+		}
+
+		throw new ExternalRuntimeException("Got result $result when trying to execute $filename");
 	}
 
 	/**
@@ -25,62 +96,39 @@ class ExternalRuntime implements RuntimeInterface
 	public function isAvailable()
 	{
 		try {
-			$output = $this->execute("console.log('YES')");
+			$output = $this->execute('x = 3;');
 		} catch (ExternalRuntimeException $e) {
 			return false;
 		}
 
-		return $output == 'YES';
+		return true;
 	}
 
 	/**
-	 * Run this javascript against the external command
-	 * we have passed into the command line
+	 * Encode the source code so it is okay? Not sure what I'm doing here
 	 * 
-	 * @param  string $param
-	 * @return string
+	 * @param  string $source
+	 * @return string        
 	 */
-	public function execute($param)
+	protected function encode($source)
 	{
-		if ($this->wrapInFile) {
-			$param = $this->getFileWrapper($param);
-		}
-
-		$result = 0; $outputs = array();
-		exec($this->command . " $param", $outputs, $result);
-
-		if ($this->wrapInFile) {
-			unlink($param);
-		}
-
-		if ($result == 0) {
-			return implode('', $outputs);
-		}
-
-		throw new ExternalRuntimeException("Got result $result when trying to execute $param");
+		return $source;
 	}
 
 	/**
-	 * Execute in file
+	 * Creates a new temp file for us to use
 	 * 
-	 * @param  string $javascript
+	 * @param  string $source
 	 * @return string            
 	 */
-	protected function getFileWrapper($javascript)
+	protected function createFileWrapper($source)
 	{
-		$filename = $this->getRandomFilename();
-		file_put_contents($filename, $javascript);
+		do {
+			$filename = sys_get_temp_dir() . '/execute.' . substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 10) . '.js';
+		} while (file_exists($filename));
+
+		file_put_contents($filename, $source);
 		return $filename;
 	}
 
-	/**
-	 * Gets a random temporary filename
-	 * 
-	 * @return string
-	 */
-	protected function getRandomFilename()
-	{
-		$filename = tempnam(sys_get_temp_dir(), 'executejs') . '.js';
-		return file_exists($filename) ? $this->getRandomFilename() : $filename;
-	}
 }

@@ -21,12 +21,15 @@ class NodeRuntimeTest extends PHPUnit_Framework_TestCase
 
     public function testHandlebars()
     {
-       if (!$this->runtime->isAvailable()) return;
+        if (!$this->runtime->isAvailable()) return;
 
-        $this->runtime->wrapInFile = false;
-        $file = __DIR__ . '/handlebars/bin/handlebars ' . __DIR__ . '/handlebars/testfiles/test.jst.hbs';
-        $output = $this->runtime->execute($file);
+        $this->runtime->compile_file(__DIR__ . '/handlebars.js');
 
-        $this->assertContains("var template = Handlebars.template, templates = Handlebars.templates = Handlebars.templates || {};templates['test.jst.hbs']", $output);
+        $html = '<div>{{foo}}</div>';
+        $source = "print(\"var JST = (typeof JST === 'undefined') ? {} : JST; (function() { var template = Handlebars.template, templates = JST; templates['test.jst.hbs'] = template(\" + Handlebars.precompile('$html') + \"); })();\")";
+        $output = $this->runtime->execute($source);
+
+        $this->assertContains("var JST = (typeof JST === 'undefined') ? {} : JST; (function() { var template = Handlebars.template, templates = JST; templates['test.jst.hbs']", $output);
     }
+
 }
