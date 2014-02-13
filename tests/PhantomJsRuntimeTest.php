@@ -52,4 +52,9 @@ class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
         $this->assertContains("templates['test.jst.hbs']", $output);
     }
 
+    // write a test to ensure that phantom.js has phantom.exit() written to 
+    // javascript files that don't contain that
+
+    // also write a test using rasterize or something as an example to see
+    // that it works...
 }
