@@ -41,7 +41,7 @@ class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
         $source = file_get_contents(__DIR__ . '/files/source1.js');
         $output = $this->runtime->execute($source);
 
-        $this->assertEquals($output, 'hello world');
+        $this->assertEquals($output, "hello world\n");
     }
 
     public function testHandlebars()
@@ -50,6 +50,15 @@ class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
         $output = $this->runtime->execute($source);
 
         $this->assertContains("templates['test.jst.hbs']", $output);
+    }
+
+    /**
+     * @expectedException Codesleeve\Executejs\Exceptions\ExternalRuntimeException
+     */
+    public function testInvalidSourceCode()
+    {
+        $source = file_get_contents(__DIR__ . '/files/source3.js');
+        $output = $this->runtime->execute($source);
     }
 
     // write a test to ensure that phantom.js has phantom.exit() written to 

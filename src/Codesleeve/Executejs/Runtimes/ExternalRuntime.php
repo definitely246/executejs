@@ -83,7 +83,7 @@ class ExternalRuntime implements RuntimeInterface
 
 		unlink($filename);
 
-		return $output;			
+		return $output;
 	}
 
 	/**
@@ -95,14 +95,34 @@ class ExternalRuntime implements RuntimeInterface
 	 */
 	protected function process($command)
 	{
-		exec($command, $output, $result);
+		$buffers = array(
+			0 => array('pipe', 'r'),
+			1 => array("pipe", "w"),
+			2 => array('pipe', 'w'),
+		);
+
+		$process = proc_open($command, $buffers, $pipes);
+
+		if (!is_resource($process))
+		{
+			throw new ExternalRuntimeException("Could not execute $command");
+		}
+
+		fclose($pipes[0]);
+
+		$output = stream_get_contents($pipes[1]);
+
+		fclose($pipes[1]);
+		fclose($pipes[2]);
+
+		$result = proc_close($process);
 
 		if ($result != 0)
 		{
-			throw new ExternalRuntimeException("Got a return status of $result when executing $command");
+			throw new ExternalRuntimeException("Got $result when executing $command");
 		}
 
-		return implode('', $output);
+		return $output;
 	}
 
 	/**

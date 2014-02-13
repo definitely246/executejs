@@ -10,8 +10,6 @@ class PhantomJsRuntime extends ExternalRuntime
 		$executable = realpath(__DIR__ . '/../../../../bin/phantomjs');
 
 		parent::__construct($executable);
-
-		$this->compile_file(__DIR__ . '/../Support/phantomjs_runtime.js');
 	}
 
 	/**
@@ -19,12 +17,20 @@ class PhantomJsRuntime extends ExternalRuntime
 	 */
 	public function execute($source)
 	{
+		$wrapper = file_get_contents(__DIR__ . '/../Support/phantomjs_runtime.js');
+
 		if ($this->hasNoExit($source))
 		{
 			$source .= PHP_EOL . 'phantom.exit();';
 		}
 
-		return parent::execute($source);
+		$scriptPath = $this->createFileWrapper($source);
+		$wrapper = str_replace('{{SCRIPT_PATH}}', $scriptPath, $wrapper);
+		$results = parent::execute($wrapper);
+
+		unlink($scriptPath);
+
+		return $results;
 	}
 
 	/**

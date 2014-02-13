@@ -52,4 +52,14 @@ class NodeRuntimeTest extends PHPUnit_Framework_TestCase
         $this->assertContains("templates['test.jst.hbs']", $output);
     }
 
+    /**
+     * @expectedException Codesleeve\Executejs\Exceptions\ExternalRuntimeException
+     */
+    public function testInvalidSourceCode()
+    {
+        $source = file_get_contents(__DIR__ . '/files/source3.js');
+        $output = $this->runtime->execute($source);
+    }
+
+
 }
