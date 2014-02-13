@@ -1,5 +1,6 @@
 {
     "name": "codesleeve/executejs",
+    "bin": ["bin/phantomjs"],
     "description": "",
     "license": "MIT",
     "authors": [
