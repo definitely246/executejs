@@ -77,7 +77,9 @@ class ExternalRuntime implements RuntimeInterface
 		$filename = $this->createFileWrapper($source);
 		$result = 0; $outputs = array();
 
-		exec($this->executable . " $filename", $outputs, $result);
+		$cmd  = escapeshellcmd(sprintf("%s %s", $this->executable, $filename));
+
+		exec($cmd, $outputs, $result);
 
 		if ($result == 0)
 		{
