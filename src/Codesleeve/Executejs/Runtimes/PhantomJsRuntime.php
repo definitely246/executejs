@@ -19,7 +19,7 @@ class PhantomJsRuntime extends ExternalRuntime
 	 */
 	public function execute($source)
 	{
-		if ($this->doesNotHaveExitPath($source))
+		if ($this->hasNoExit($source))
 		{
 			$source .= PHP_EOL . 'phantom.exit();';
 		}
@@ -31,8 +31,8 @@ class PhantomJsRuntime extends ExternalRuntime
 	 * Simple check to see if the script has anything about 
 	 * phantom.exit in it
 	 */
-	private function doesNotHaveExitPath($source)
+	private function hasNoExit($source)
 	{
-		return strpos('phantom.exit()', $source) === FALSE;
+		return strpos($source, 'phantom.exit()') === false;
 	}
 }
