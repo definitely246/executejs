@@ -74,20 +74,35 @@ class ExternalRuntime implements RuntimeInterface
 	public function execute($source)
 	{
 		$source = $this->source . $this->encode($source);
+
 		$filename = $this->createFileWrapper($source);
-		$result = 0; $outputs = array();
 
-		$cmd  = escapeshellcmd(sprintf("%s %s", $this->executable, $filename));
+		$command  = escapeshellcmd(sprintf("%s %s", $this->executable, $filename));
 
-		exec($cmd, $outputs, $result);
+		$output = $this->process($command);
 
-		if ($result == 0)
+		unlink($filename);
+
+		return $output;			
+	}
+
+	/**
+	 * Process the command given by calling executable.
+	 * This can be overridden as well if something different is needed here
+	 * 
+	 * @param  string $command
+	 * @return string
+	 */
+	protected function process($command)
+	{
+		exec($command, $output, $result);
+
+		if ($result != 0)
 		{
-			unlink($filename);
-			return implode('', $outputs);
+			throw new ExternalRuntimeException("Got a return status of $result when executing $command");
 		}
 
-		throw new ExternalRuntimeException("Got result $result when trying to execute $filename");
+		return implode('', $output);
 	}
 
 	/**
