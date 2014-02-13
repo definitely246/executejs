@@ -28,6 +28,23 @@ class PhantomJsRuntime extends ExternalRuntime
 	}
 
 	/**
+	 * Control how a command is executed
+	 * 
+	 * @param  [type] $cmd [description]
+	 * @return [type]      [description]
+	 */
+	// protected function process($command)
+	// {
+	// 	$buffers = array();
+	// 	$resource = proc_open($cmd, $buffers, $pipes);
+		
+	// 	if (is_resource($resource))
+	// 	{
+	// 		return true;
+	// 	}
+	// }
+
+	/**
 	 * Simple check to see if the script has anything about 
 	 * phantom.exit in it
 	 */
