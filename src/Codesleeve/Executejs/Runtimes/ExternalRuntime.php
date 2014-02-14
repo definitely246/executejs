@@ -93,9 +93,8 @@ class ExternalRuntime implements RuntimeInterface
 		else
 		{
 			$output = $this->process($command);
+			unlink($filename);
 		}
-
-		unlink($filename);
 
 		return $output;
 	}

@@ -38,7 +38,8 @@ class PhantomJsRuntime extends ExternalRuntime
 	}
 
 	/**
-	 * [ensureExitPathExists description]
+	 * Make sure ththe phantom script can exit somehow.
+	 * 
 	 * @param  [type] $source [description]
 	 * @return [type]         [description]
 	 */
