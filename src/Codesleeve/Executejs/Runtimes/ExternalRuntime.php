@@ -38,6 +38,13 @@ class ExternalRuntime implements RuntimeInterface
 	protected $storageDirectory;
 
 	/**
+	 * Some things execute differently on a windows environment
+	 * 
+	 * @var boolean
+	 */
+	protected $isWindowsEnvironment = false;
+
+	/**
 	 * Create a new external runtime class
 	 * 
 	 * @param string $context    
@@ -49,6 +56,7 @@ class ExternalRuntime implements RuntimeInterface
 		$this->executable = $executable;
 		$this->source = $source ? $source . PHP_EOL : "";
 		$this->storageDirectory = $storageDirectory ? $storageDirectory : sys_get_temp_dir();
+		$this->isWindowsEnvironment = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 	}
 
 	/**
@@ -258,6 +266,11 @@ class ExternalRuntime implements RuntimeInterface
 			return "echo {$filename}";
 		}
 
+		if ($this->isWindowsEnvironment)
+		{
+			return "DEL /F /S /Q /A {$filename}";
+		}
+
 		return "rm -f {$filename}";
 	}
 
@@ -268,6 +281,11 @@ class ExternalRuntime implements RuntimeInterface
 	 */
 	protected function separator()
 	{
+		if ($this->isWindowsEnvironment)
+		{
+			return "&";
+		}
+
 		return ";";
 	}
 
