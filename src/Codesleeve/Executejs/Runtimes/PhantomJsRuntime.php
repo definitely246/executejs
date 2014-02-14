@@ -15,47 +15,41 @@ class PhantomJsRuntime extends ExternalRuntime
 	/**
 	 * we need to make phantomjs terminate if there is no phantom.exit() called
 	 */
-	public function execute($source)
+	public function execute($source, $options = array())
 	{
 		$wrapper = file_get_contents(__DIR__ . '/../Support/phantomjs_runtime.js');
 
-		if ($this->hasNoExit($source))
+		$source = $this->ensureExitPathExists($source);
+
+		$scriptPath = $this->createFileWrapper($source);
+
+		$wrapper = str_replace('{{SCRIPT_PATH}}', $scriptPath, $wrapper);
+
+		$this->async = array_key_exists('async', $options) ? $options['async'] : false;
+
+		$outcome = parent::execute($wrapper);
+
+		if (!$this->async)
+		{
+			unlink($scriptPath);
+		}
+
+		return $outcome;
+	}
+
+	/**
+	 * [ensureExitPathExists description]
+	 * @param  [type] $source [description]
+	 * @return [type]         [description]
+	 */
+	private function ensureExitPathExists($source)
+	{
+		if (strpos($source, 'phantom.exit()') === false)
 		{
 			$source .= PHP_EOL . 'phantom.exit();';
 		}
 
-		$scriptPath = $this->createFileWrapper($source);
-		$wrapper = str_replace('{{SCRIPT_PATH}}', $scriptPath, $wrapper);
-		$results = parent::execute($wrapper);
-
-		unlink($scriptPath);
-
-		return $results;
+		return $source;		
 	}
 
-	/**
-	 * Control how a command is executed
-	 * 
-	 * @param  [type] $cmd [description]
-	 * @return [type]      [description]
-	 */
-	// protected function process($command)
-	// {
-	// 	$buffers = array();
-	// 	$resource = proc_open($cmd, $buffers, $pipes);
-		
-	// 	if (is_resource($resource))
-	// 	{
-	// 		return true;
-	// 	}
-	// }
-
-	/**
-	 * Simple check to see if the script has anything about 
-	 * phantom.exit in it
-	 */
-	private function hasNoExit($source)
-	{
-		return strpos($source, 'phantom.exit()') === false;
-	}
 }

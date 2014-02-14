@@ -5,6 +5,13 @@ use Codesleeve\Executejs\Exceptions\ExternalRuntimeException;
 class ExternalRuntime implements RuntimeInterface
 {
 	/**
+	 * If true then we just execute scripts
+	 * else we block process and wait on output
+	 * @var boolean
+	 */
+	public $async = false;
+
+	/**
 	 * Create a new external runtime class
 	 * 
 	 * @param string $context    
@@ -79,7 +86,14 @@ class ExternalRuntime implements RuntimeInterface
 
 		$command  = escapeshellcmd(sprintf("%s %s", $this->executable, $filename));
 
-		$output = $this->process($command);
+		if ($this->async === true)
+		{
+			$output = $this->processInBackground($command);
+		}
+		else
+		{
+			$output = $this->process($command);
+		}
 
 		unlink($filename);
 
@@ -123,6 +137,30 @@ class ExternalRuntime implements RuntimeInterface
 		}
 
 		return $output;
+	}
+
+	/**
+	 * Execute process in the background. If we do
+	 * this then there is no way to examine what the output is
+	 * when the process finishes. This is good if you want to
+	 * do something like start a server or something that will
+	 * take a long time to finish execution.
+	 * 
+	 * @param  [type] $command [description]
+	 * @return [type]          [description]
+	 */
+	protected function processInBackground($command)
+	{
+		$buffers = array();
+
+		$process = proc_open($command, $buffers, $pipes);
+
+		if (!is_resource($process))
+		{
+			throw new ExternalRuntimeException("Could not execute $command");
+		}
+
+		return true;
 	}
 
 	/**
