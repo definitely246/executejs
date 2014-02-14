@@ -1,4 +1,4 @@
-<?php namespace Codesleeve\Executejs\Runtimes;
+<?php namespace Codesleeve\Executejs\Interfaces;
 
 interface RuntimeInterface
 {
@@ -14,7 +14,7 @@ interface RuntimeInterface
 	/**
 	 * Bring in more source code for the current context
 	 * 
-	 * @param  string $source
+	 * @param  string|file $source
 	 * @return $this        
 	 */
 	public function compile($source);
@@ -27,6 +27,16 @@ interface RuntimeInterface
 	 * @return string        
 	 */
 	public function execute($source);
+
+	/**
+	 * Executes the source code and return a
+	 * temporary file where the results will 
+	 * be output to when it is finished.
+	 * 
+	 * @param  $source
+	 * @return $filename
+	 */
+	public function executeInBackground($source);
 
 	/**
 	 * Evaluate wraps the source code in an javascript eval()

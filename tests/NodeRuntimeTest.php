@@ -1,15 +1,14 @@
 <?php namespace Codesleeve\Executejs;
 
-use PHPUnit_Framework_TestCase;
-
-class NodeRuntimeTest extends PHPUnit_Framework_TestCase
+class NodeRuntimeTest extends TestCase
 { 
     public function setUp()
     {
         $this->runtime = new Runtimes\NodeRuntime;
+        $this->source = file_get_contents(__DIR__ . '/files/source1.js');
+        $this->handlebars_source = file_get_contents(__DIR__ . '/files/source2.js');
+        $this->invalid_source = file_get_contents(__DIR__ . '/files/source3.js');
     }
-
-
 
     public function testCall()
     {
@@ -38,18 +37,22 @@ class NodeRuntimeTest extends PHPUnit_Framework_TestCase
 
     public function testExecute()
     {
-        $source = file_get_contents(__DIR__ . '/files/source1.js');
-        $output = $this->runtime->execute($source);
+        $outcome = $this->runtime->execute($this->source);
+        $this->assertEquals($outcome, 'hello world');
+    }
 
-        $this->assertEquals($output, 'hello world');
+    public function testExecuteInBackground()
+    {
+        $outcome = $this->runtime->executeInBackground($this->source);
+        
+        $this->assertExecutionFinishes($outcome[0]);
+        $this->assertExecutionEquals($outcome[1], "hello world");
     }
 
     public function testHandlebars()
     {
-        $source = file_get_contents(__DIR__ . '/files/source2.js');
-        $output = $this->runtime->execute($source);
-
-        $this->assertContains("templates['test.jst.hbs']", $output);
+        $outcome = $this->runtime->execute($this->handlebars_source);
+        $this->assertContains("templates['test.jst.hbs']", $outcome);
     }
 
     /**
@@ -57,9 +60,6 @@ class NodeRuntimeTest extends PHPUnit_Framework_TestCase
      */
     public function testInvalidSourceCode()
     {
-        $source = file_get_contents(__DIR__ . '/files/source3.js');
-        $output = $this->runtime->execute($source);
+        $outcome = $this->runtime->execute($this->invalid_source);
     }
-
-
 }

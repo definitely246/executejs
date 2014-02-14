@@ -1,16 +1,17 @@
 <?php namespace Codesleeve\Executejs;
 
-class Executejs implements Runtimes\RuntimeInterface
+class Executejs implements Interfaces\RuntimeInterface
 {
 	/**
 	 * Create a new executejs object with a runtime
 	 * 
 	 * @param RuntimeInterface $runtime
 	 */
-	public function __construct(Runtimes\RuntimeInterface $runtime = null)
+	public function __construct(Interfaces\RuntimeInterface $runtime = null)
 	{
 		$this->runtimes = array(
-			new Runtimes\NodeRuntime
+			new Runtimes\NodeRuntime,
+			new Runtimes\PhantomJsRuntime,
 		);
 
 		$this->runtime = $runtime ?: $this->firstAvailable();

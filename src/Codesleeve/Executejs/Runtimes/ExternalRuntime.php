@@ -1,26 +1,54 @@
 <?php namespace Codesleeve\Executejs\Runtimes;
 
+use Codesleeve\Executejs\Interfaces\RuntimeInterface;
 use Codesleeve\Executejs\Exceptions\ExternalRuntimeException;
 
 class ExternalRuntime implements RuntimeInterface
 {
 	/**
-	 * If true then we just execute scripts
-	 * else we block process and wait on output
+	 * Allows us to turn on a debug mode if we are trying to troubleshoot
+	 * a runtime. This basically just overrides output in remove() function
+	 * 
 	 * @var boolean
 	 */
-	public $async = false;
+	public $debug = false;
+
+	/**
+	 * The binary file that runs the javascript 
+	 * source code
+	 * 
+	 * @var file
+	 */
+	protected $executable;
+
+	/**
+	 * Prepends this source code to every script run by
+	 * this executable runtime
+	 * 
+	 * @var string
+	 */
+	protected $source;
+
+	/**
+	 * This is the place where we store temporary scripts
+	 * that are run by the executable
+	 * 
+	 * @var directory
+	 */
+	protected $storageDirectory;
 
 	/**
 	 * Create a new external runtime class
 	 * 
 	 * @param string $context    
 	 * @param string $source
+	 * @param string $storageDirectory
 	 */
-	public function __construct($executable, $source = "")
+	public function __construct($executable, $source = "", $storageDirectory = null)
 	{
 		$this->executable = $executable;
 		$this->source = $source ? $source . PHP_EOL : "";
+		$this->storageDirectory = $storageDirectory ? $storageDirectory : sys_get_temp_dir();
 	}
 
 	/**
@@ -40,24 +68,18 @@ class ExternalRuntime implements RuntimeInterface
 	/**
 	 * Add in additional source code to our existing runtime
 	 * 
-	 * @param  string $source
+	 * @param  string|file $source
 	 * @return $this        
 	 */
 	public function compile($source)
 	{
+		if (file_exists($source))
+		{
+			$source = file_get_contents($source);
+		}
+
 		$this->source .= $source;
 		return $this;
-	}
-
-	/**
-	 * Compiles the source from a file name
-	 * 
-	 * @param  string $filename
-	 * @return string          
-	 */
-	public function compile_file($filename)
-	{
-		return $this->compile(file_get_contents($filename));
 	}
 
 	/**
@@ -80,86 +102,47 @@ class ExternalRuntime implements RuntimeInterface
 	 */
 	public function execute($source)
 	{
+		$error = null;
+
 		$source = $this->source . $this->encode($source);
 
-		$filename = $this->createFileWrapper($source);
+		$sourceFile = $this->createFileFromSource($source);
 
-		$command  = escapeshellcmd(sprintf("%s %s", $this->executable, $filename));
+		$command  = "{$this->executable} $sourceFile";
 
-		if ($this->async === true)
+		try { $outcome = $this->process($command); } catch (ExternalRuntimeException $e) { $error = $e; }
+
+		unlink($sourceFile);
+
+		if ($error)
 		{
-			$output = $this->processInBackground($command);
-		}
-		else
-		{
-			$output = $this->process($command);
-			unlink($filename);
+			throw $error;
 		}
 
-		return $output;
+		return $outcome;
 	}
 
 	/**
-	 * Process the command given by calling executable.
-	 * This can be overridden as well if something different is needed here
+	 * Run this javascript in background process and return
+	 * the file which output will be sent to when the process
+	 * finishes.
 	 * 
-	 * @param  string $command
-	 * @return string
+	 * @param  string $source
+	 * @return array($pidfile, $outputfile)
 	 */
-	protected function process($command)
+	public function executeInBackground($source)
 	{
-		$buffers = array(
-			0 => array('pipe', 'r'),
-			1 => array("pipe", "w"),
-			2 => array('pipe', 'w'),
-		);
+		$source = $this->source . $this->encode($source);
 
-		$process = proc_open($command, $buffers, $pipes);
+		$sourceFile = $this->createFileFromSource($source);
 
-		if (!is_resource($process))
-		{
-			throw new ExternalRuntimeException("Could not execute $command");
-		}
+		list($pidFile, $resultsFile) = $this->createPidAndResultsFiles();
 
-		fclose($pipes[0]);
+		$command = "{$this->executable} {$sourceFile} > {$resultsFile} 2>&1 {$this->separator()} " . $this->remove("{$sourceFile} {$pidFile}");
 
-		$output = stream_get_contents($pipes[1]);
+		$this->processInBackground($command);
 
-		fclose($pipes[1]);
-		fclose($pipes[2]);
-
-		$result = proc_close($process);
-
-		if ($result != 0)
-		{
-			throw new ExternalRuntimeException("Got $result when executing $command");
-		}
-
-		return $output;
-	}
-
-	/**
-	 * Execute process in the background. If we do
-	 * this then there is no way to examine what the output is
-	 * when the process finishes. This is good if you want to
-	 * do something like start a server or something that will
-	 * take a long time to finish execution.
-	 * 
-	 * @param  [type] $command [description]
-	 * @return [type]          [description]
-	 */
-	protected function processInBackground($command)
-	{
-		$buffers = array();
-
-		$process = proc_open($command, $buffers, $pipes);
-
-		if (!is_resource($process))
-		{
-			throw new ExternalRuntimeException("Could not execute $command");
-		}
-
-		return true;
+		return array($pidFile, $resultsFile);
 	}
 
 	/**
@@ -195,14 +178,150 @@ class ExternalRuntime implements RuntimeInterface
 	 * @param  string $source
 	 * @return string            
 	 */
-	protected function createFileWrapper($source)
+	protected function createFileFromSource($source)
 	{
-		do {
-			$filename = sys_get_temp_dir() . '/execute.' . substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 10) . '.js';
-		} while (file_exists($filename));
-
+		$filename = $this->createFileFromPrefixAndExtension('executejs', 'js');
 		file_put_contents($filename, $source);
 		return $filename;
 	}
 
+	/**
+	 * Creates a pid and results file for that pid
+	 * 
+	 * @return 
+	 */
+	protected function createPidAndResultsFiles()
+	{
+		$now = new \DateTime("now", new \DateTimeZone('UTC'));
+		$now = $now->format("m-d-Y_H-i-s");
+
+		$pid = $this->randomString();
+		$pidFile = "{$this->storageDirectory}/executejs.{$pid}.pid";
+		$resultsFile = "{$this->storageDirectory}/executejs.{$pid}.{$now}.result.txt";
+
+		return array($pidFile, $resultsFile);
+	}
+
+	/**
+	 * Create a temporary file from a given prefix and extension
+	 * 
+	 * @param  string $prefix
+	 * @param  string $extension
+	 * @return string
+	 */
+	protected function createFileFromPrefixAndExtension($prefix, $extension)
+	{
+		do {
+			$filename = $this->createRandomFilename($prefix, $extension);
+		} while (file_exists($filename));
+
+		return $filename;
+	}
+
+	/**
+	 * Creates a random file name with given prefix and extension
+	 * 
+	 * @param  string $prefix
+	 * @param  string $extension
+	 * @return string
+	 */
+	protected function createRandomFilename($prefix, $extension)
+	{
+		return "{$this->storageDirectory}/{$prefix}.{$this->randomString()}.{$extension}";
+	}
+
+	/**
+	 * Return a random string of characters. Useful for creating
+	 * random filenames.
+	 * 
+	 * @param  integer $length
+	 * @param  string  $pool
+	 * @return random string
+	 */
+	protected function randomString($length = 16, $pool = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	{
+		return substr(str_shuffle($pool), 0, $length);
+	}
+
+	/**
+	 * Returns the command in order to remove a file. This can
+	 * differ based on operating system so let's make it work for
+	 * linux and then windows later.
+	 * 
+	 * @param  file $filename
+	 * @return string
+	 */
+	protected function remove($filename)
+	{
+		if ($this->debug)
+		{
+			return "echo {$filename}";
+		}
+
+		return "rm -f {$filename}";
+	}
+
+	/**
+	 * On windows a command line seperator is & but on linux it is a ;
+	 * 
+	 * @return string
+	 */
+	protected function separator()
+	{
+		return ";";
+	}
+
+	/**
+	 * Process the command given by calling executable.
+	 * This can be overridden as well if something different is needed here
+	 * 
+	 * @param  string $command
+	 * @return string
+	 */
+	protected function process($command)
+	{
+		$buffers = array(0 => array('pipe', 'r'), 1 => array("pipe", "w"), 2 => array('pipe', 'w'));
+		$process = proc_open($command, $buffers, $pipes);
+
+		if (!is_resource($process))
+		{
+			throw new ExternalRuntimeException("Could not execute $command");
+		}
+
+		fclose($pipes[0]);
+		$output = stream_get_contents($pipes[1]);
+		fclose($pipes[1]);
+		fclose($pipes[2]);
+		$result = proc_close($process);
+
+		if ($result != 0)
+		{
+			throw new ExternalRuntimeException("Got $result when executing $command");
+		}
+
+		return $output;
+	}
+
+	/**
+	 * Execute process in the background. If we do
+	 * this then there is no way to examine what the output is
+	 * when the process finishes. This is good if you want to
+	 * do something like start a server or something that will
+	 * take a long time to finish execution.
+	 * 
+	 * @param  [type] $command [description]
+	 * @return [type]          [description]
+	 */
+	protected function processInBackground($command)
+	{
+		$buffers = array();
+		$process = proc_open($command, $buffers, $pipes);
+
+		if (!is_resource($process))
+		{
+			throw new ExternalRuntimeException("Could not execute $command");
+		}
+
+		return $process;
+	}
 }

@@ -1,15 +1,14 @@
 <?php namespace Codesleeve\Executejs;
 
-use PHPUnit_Framework_TestCase;
-
-class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
+class PhantomJsRuntimeTest extends TestCase
 { 
     public function setUp()
     {
         $this->runtime = new Runtimes\PhantomJsRuntime;
+        $this->source = file_get_contents(__DIR__ . '/files/source1.js');
+        $this->handlebars_source = file_get_contents(__DIR__ . '/files/source2.js');
+        $this->invalid_source = file_get_contents(__DIR__ . '/files/source3.js');
     }
-
-
 
     public function testCall()
     {
@@ -38,18 +37,34 @@ class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
 
     public function testExecute()
     {
-        $source = file_get_contents(__DIR__ . '/files/source1.js');
-        $output = $this->runtime->execute($source);
+        $outcome = $this->runtime->execute($this->source);
+        $this->assertEquals($outcome, "hello world\n");
+    }
 
-        $this->assertEquals($output, "hello world\n");
+    public function testExecuteInBackground()
+    {
+        $outcome = $this->runtime->executeInBackground($this->source);
+        
+        $this->assertExecutionFinishes($outcome[0]);
+        $this->assertExecutionEquals($outcome[1], "hello world\n");
     }
 
     public function testHandlebars()
     {
-        $source = file_get_contents(__DIR__ . '/files/source2.js');
-        $output = $this->runtime->execute($source);
+        $outcome = $this->runtime->execute($this->handlebars_source);
+        $this->assertContains("templates['test.jst.hbs']", $outcome);
+    }
 
-        $this->assertContains("templates['test.jst.hbs']", $output);
+    public function testPhantomExit()
+    {
+        // write a test to ensure that phantom.js has phantom.exit() written to 
+        // javascript files that don't contain that
+    }
+
+    public function testCustomPhantomScript()
+    {
+        // also write a test using rasterize or something as an example to see
+        // that it works...
     }
 
     /**
@@ -57,13 +72,6 @@ class PhantomJsRuntimeTest extends PHPUnit_Framework_TestCase
      */
     public function testInvalidSourceCode()
     {
-        $source = file_get_contents(__DIR__ . '/files/source3.js');
-        $output = $this->runtime->execute($source);
+        $outcome = $this->runtime->execute($this->invalid_source);
     }
-
-    // write a test to ensure that phantom.js has phantom.exit() written to 
-    // javascript files that don't contain that
-
-    // also write a test using rasterize or something as an example to see
-    // that it works...
 }

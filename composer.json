@@ -18,7 +18,7 @@
     },
     "autoload": {
         "classmap": [
-
+            "tests/TestCase.php"
         ],
         "psr-0": {
             "Codesleeve\\Executejs\\": "src/"
